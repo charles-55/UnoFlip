@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 
 public class GameModel {
@@ -44,6 +45,11 @@ public class GameModel {
 
         /* set the playing card */
         playingCard = deck.removeCard();
+
+        if(playingCard.getSide(playingSide).getTempColor() != null) {
+            int newColorIndex = (new Random()).nextInt((playingSide ? 0 : 5) + 4);
+            playingCard.getSide(playingSide).setTempColor(CardColor.values()[newColorIndex]);
+        }
     }
 
     private void nextTurn() {
@@ -51,10 +57,6 @@ public class GameModel {
             playingIndex = (playingIndex + 1) % players.size();
         else
             playingIndex = (playingIndex - 1) % players.size();
-    }
-
-    public int getActivePlayersNum() {
-        return (int) players.stream().filter(player -> !player.hasQuit()).count();
     }
 
     public void start() {
@@ -72,9 +74,9 @@ public class GameModel {
                 playChoice = getHumanPlay();
             System.out.println();
 
-            implementCardPlayed(playChoice);
+            implementPlay(playChoice);
 
-        } while (getActivePlayersNum() >= 2);
+        } while(players.size() >= 2);
 
         System.out.println("Game is over!");
     }
@@ -106,7 +108,6 @@ public class GameModel {
         else if(choice == (options.size() + 1)) { // if player drew a card
             System.out.println(players.get(playingIndex).getName() + " drew a card.");
             players.get(playingIndex).addCard(deck.removeCard());
-            System.out.println();
             return null;
         }
         else if(choice == (options.size() + 2)) { // if player wants to view all their cards
@@ -115,11 +116,9 @@ public class GameModel {
             return getHumanPlay();
         }
         else if(choice == (options.size() + 3)) { // if the player quits
-            System.out.println(players.get(playingIndex).getName() + " left the game.");
             ArrayList<Card> playersCards = players.get(playingIndex).quit();
             for(int i = 0; i < playersCards.size();)
                 deck.addCard(playersCards.remove(i));
-            System.out.println();
             return null;
         }
 
@@ -149,15 +148,19 @@ public class GameModel {
         return options;
     }
 
-    private void implementCardPlayed(Card selectedCard) {
-        if(players.get(playingIndex).hasQuit()) {
+    private void implementPlay(Card selectedCard) {
+        if(players.get(playingIndex).hasQuit()) { // player quit
+            System.out.println(players.get(playingIndex).getName() + " left the game.");
             players.remove(players.get(playingIndex));
             if(!cwDirection)
                 nextTurn();
+            return;
         }
 
-        if(selectedCard == null)
+        if(selectedCard == null) { // drew card
+            nextTurn();
             return;
+        }
 
         /* update playing card */
         Card temp = playingCard;
@@ -167,6 +170,16 @@ public class GameModel {
         deck.addCard(temp);
 
         System.out.println(players.get(playingIndex).getName() + " played " + playingCard.getSide(playingSide).toString());
+
+        /* check if player has one more card */
+        if(players.get(playingIndex).getCards().size() == 1)
+            System.out.println("UNO!!! " + players.get(playingIndex).getName() + " has one more card!");
+
+        /* check if player played last card */
+        else if(players.get(playingIndex).getCards().isEmpty()) {
+            playerUnoOut(players.get(playingIndex));
+            return;
+        }
 
         switch(playingCard.getSide(playingSide).getValue()) {
             case SKIP -> nextTurn();
@@ -183,5 +196,38 @@ public class GameModel {
         }
 
         nextTurn();
+    }
+
+    private void playerUnoOut(Player player) {
+        if(playingCard.getSide(playingSide).getValue() == CardValue.FLIP)
+            playingSide = !playingSide;
+
+        int score = player.getScore();
+
+        for(Player p : players) {
+            if(p == player)
+                continue;
+
+            for(Card card : p.getCards()) {
+                switch(card.getSide(playingSide).getValue()) {
+                    case ONE -> score += 1;
+                    case TWO -> score += 2;
+                    case THREE -> score += 3;
+                    case FOUR -> score += 4;
+                    case FIVE -> score += 5;
+                    case SIX -> score += 6;
+                    case SEVEN -> score += 7;
+                    case EIGHT -> score += 8;
+                    case NINE -> score += 9;
+                    case SKIP, REVERSE, FLIP -> score += 20;
+                    case WILD -> score += 40;
+                    case DRAW_TWO -> score += 50;
+                }
+            }
+        }
+
+        player.setScore(score);
+        System.out.println(player.getName() + " won with a score of " + score + "!");
+        System.exit(0);
     }
 }
