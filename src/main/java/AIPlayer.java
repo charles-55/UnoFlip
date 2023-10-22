@@ -1,7 +1,6 @@
 import java.util.ArrayList;
 import java.util.Random;
 
-// TODO: 2023-10-20 To be implemented
 public class AIPlayer extends Player {
 
     public AIPlayer(String name) {
